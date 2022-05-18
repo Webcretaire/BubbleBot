@@ -35,31 +35,23 @@ class RoleReactionManager
 - :keyboard: New LiveSplitAnalyzer activity
 - :tv: Streams on Twitch";
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->parameters = Parameters::getInstance();
     }
 
     private function roleNameFromEmoji(Emoji $emoji): string
     {
-        // These litterals in "case" are not regular letters, but that's what Discord is giving us 
-        switch ($emoji->name) {
-            case '🇦':
-                return 'He/Him';
-            case '🇧':
-                return 'She/Her';
-            case '🇨':
-                return 'They/Them';
-            case '🇩':
-                return 'Fae/Faer';
-            case '🇪':
-                return 'Ask pronouns';
-            case '📺':
-                return 'Stream ping';
-            case '⌨️':
-                return 'LSA ping';
-            default:
-                return '';
-        }
+        return match ($emoji->name) {
+            '🇦' => 'He/Him',
+            '🇧' => 'She/Her',
+            '🇨' => 'They/Them',
+            '🇩' => 'Fae/Faer',
+            '🇪' => 'Ask pronouns',
+            '📺' => 'Stream ping',
+            '⌨️' => 'LSA ping',
+            default => '',
+        };
     }
 
     public function addRoleFromReaction(MessageReaction $reaction, Message $message): void
@@ -72,7 +64,7 @@ class RoleReactionManager
 
         $existingRole = $guild->roles->get('name', $roleName);
 
-        $pingable = strpos($roleName, 'ping') !== false;
+        $pingable = str_contains($roleName, 'ping');
 
         // Create role if it doesn't exist already
         $rolePromise = $existingRole
@@ -90,6 +82,9 @@ class RoleReactionManager
                 $role = $results[0];
                 /** @var Member */
                 $member = $results[1];
+
+                // Don't add roles to bot
+                if ($member->displayname === $this->parameters->botDisplayName) return;
 
                 $member->addRole($role);
             });
@@ -119,24 +114,32 @@ class RoleReactionManager
     public function checkAndPostReactionMessage(Channel $channel): void
     {
         $channel->getMessageHistory(['limit' => 50])
-            ->done(function (Collection $messages) use (&$channel) {
+            ->then(function (Collection $messages) use (&$channel) {
                 /** @var Message $message */
                 foreach ($messages as $message) {
                     if ($this->isReactionRoleMessage($message)) {
                         $this->roleMessages[$channel->guild->id] = $message;
                         if ($message->content != self::REACTION_ROLE_MESSAGE)
                             $message->edit(MessageBuilder::new()->setContent(self::REACTION_ROLE_MESSAGE));
-                        return;
+                        return resolve($message);
                     }
                 }
 
                 if (!isset($this->roleMessages[$channel->guild->id]))
-                    $channel->sendMessage(MessageBuilder::new()->setContent(self::REACTION_ROLE_MESSAGE));
+                    return $channel->sendMessage(MessageBuilder::new()->setContent(self::REACTION_ROLE_MESSAGE));
+
+                return resolve();
+            })
+            ->then(function (?Message $message) {
+                if (!$message) return; // No reaction message on this server
+
+                foreach (['🇦', '🇧', '🇨', '🇩', '🇪', '📺', '⌨️'] as $emoji)
+                    $message->react($emoji);
             });
     }
 
     /**
-     * @param Guild $guild
+     * @param Guild   $guild
      * @param Message $message
      */
     public function setReactionRoleMessage(Guild $guild, Message $message)
@@ -156,6 +159,6 @@ class RoleReactionManager
 
         return $author->displayname === $this->parameters->botDisplayName
             && $message->channel->name === $this->parameters->roleChannelName
-            && strpos($message->content, '**Get roles by reacting to this message**') !== false;
+            && str_contains($message->content, '**Get roles by reacting to this message**');
     }
 }
