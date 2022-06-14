@@ -3,6 +3,7 @@
 namespace App;
 
 use Discord\Builders\MessageBuilder;
+use Discord\Http\Exceptions\NoPermissionsException;
 use Discord\Parts\Channel\Channel;
 use Psr\Http\Message\ServerRequestInterface;
 use React\EventLoop\LoopInterface;
@@ -21,11 +22,14 @@ class HttpServer
     /** @var Channel[] */
     private array $lsaNotificationChannels;
 
+    /**
+     * @param LoopInterface $loop
+     */
     public function __construct(LoopInterface $loop)
     {
         $this->parameters = Parameters::getInstance();
 
-        $server = new ReactHttpServer($loop, fn (ServerRequestInterface $r) => $this->onRequest($r));
+        $server = new ReactHttpServer($loop, fn(ServerRequestInterface $r) => $this->onRequest($r));
         $socket = new SocketServer(sprintf('tcp://127.0.0.1:%d', $this->parameters->httpPort), [], $loop);
         $socket->on(
             'error',
@@ -55,7 +59,7 @@ class HttpServer
         return resolve(new Response($code, ['Content-Type' => $contentType], $body));
     }
 
-    public function setLsaNotificationChannel(Channel $channel)
+    public function setLsaNotificationChannel(Channel $channel): void
     {
         $this->lsaNotificationChannels[$channel->guild->id] = $channel;
     }
@@ -64,7 +68,7 @@ class HttpServer
     {
         $eol = PHP_EOL;
 
-        $errorCallback = fn ($e) => self::httpAsyncResponse(
+        $errorCallback = fn($e) => self::httpAsyncResponse(
             500,
             sprintf(
                 "Error while processing HTTP request : %s{$eol}Complete trace :{$eol}%s",
@@ -86,6 +90,13 @@ class HttpServer
         }
     }
 
+    /**
+     * @param ServerRequestInterface $request
+     *
+     * @return ExtendedPromiseInterface
+     *
+     * @throws NoPermissionsException
+     */
     private function onGithubRequest(ServerRequestInterface $request): ExtendedPromiseInterface
     {
         $header = $request->getHeader(self::GITHUB_AUTH_HEADER);
@@ -106,17 +117,20 @@ class HttpServer
             && $run->status === "completed"
             && $run->conclusion === "success"
         ) {
-            $head_commit = substr(explode(': ', $run->head_commit->message)[1], 0, 10);
-            foreach ($this->lsaNotificationChannels as $channel) {
-                $role = $channel->guild->roles->get('name', 'LSA ping');
-                $pingAndNew = $role ? "<@&{$role->id}> new" : "New";
-                $channel->sendMessage(MessageBuilder::new()->setContent(
-                    "**New LiveSplitAnalyzer update**
+            $message = $run?->head_commit?->message;
+            if ($message && str_starts_with($message, 'deploy: ')) {
+                $head_commit = substr(explode(': ', $run->head_commit->message)[1], 0, 10);
+                foreach ($this->lsaNotificationChannels as $channel) {
+                    $role       = $channel->guild->roles->get('name', 'LSA ping');
+                    $pingAndNew = $role ? "<@&{$role->id}> new" : "New";
+                    $channel->sendMessage(MessageBuilder::new()->setContent(
+                        "**New LiveSplitAnalyzer update**
 
 $pingAndNew version of the website is deployed, corresponding to commit $head_commit: https://github.com/Webcretaire/LiveSplitAnalyzer/commit/$head_commit
 
 See this version live here: https://webcretaire.github.io/LiveSplitAnalyzer"
-                ));
+                    ));
+                }
             }
         }
 
