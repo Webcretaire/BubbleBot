@@ -40,10 +40,8 @@ echo "= Reload supervisord ="
 echo "======================"
 echo
 
-ssh $REMOTE_SERVER "supervisorctl update all"
-
-ssh $REMOTE_SERVER "cd $REMOTE_PROJECT_PATH && sed -e \"s,___project__dir___,$REMOTE_PROJECT_PATH,g\" supervisor.conf.dist > supervisor.conf && supervisorctl update all"
-#                   ^^^^^^^^^^^^^^^^^^^^^^^    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^---------------------------------------------------    ^^^^^^^^^^^^^^^^^^^^^^^^
-#                   Go in correct directory    Generate supervisor conf with correct path                                                 Ask supervisor to re-read conf
+ssh $REMOTE_SERVER "cd $REMOTE_PROJECT_PATH && sed -e \"s,___project__dir___,$REMOTE_PROJECT_PATH,g\" supervisor.conf.dist > supervisor.conf && supervisorctl restart all"
+#                   ^^^^^^^^^^^^^^^^^^^^^^^    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^---------------------------------------------------    ^^^^^^^^^^^^^^^^^^^^^^^^^
+#                   Go in correct directory    Generate supervisor conf with correct path                                                  Ask supervisor to re-read conf
 echo
 echo "All done :)"
