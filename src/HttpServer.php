@@ -113,7 +113,7 @@ class HttpServer
         // Process data from GitHub
         $run = json_decode($body)->workflow_run;
         if (
-            $run->name === "pages build and deployment"
+            isset($run->name) && $run->name === "pages build and deployment"
             && $run->status === "completed"
             && $run->conclusion === "success"
         ) {
