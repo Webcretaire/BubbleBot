@@ -46,7 +46,7 @@ class TwitchCommands
         // Hardcoded commands
         if ($parts[0] == 'addcmd' && $isMod) {
             $this->addCommand($parts[1], join(' ', array_slice($parts, 2)));
-            return "Command {$parts[1]} added :)";
+            return "Command {$parts[1]} added shroomPog";
         }
         if ($parts[0] == 'delcmd' && $isMod) {
             $this->removeCommand($parts[1]);
