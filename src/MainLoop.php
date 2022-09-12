@@ -3,6 +3,7 @@
 namespace App;
 
 use Discord\Discord;
+use Discord\Exceptions\IntentException;
 use Discord\Parts\Channel\Channel;
 use Discord\Parts\User\Activity;
 use Discord\Parts\WebSockets\MessageReaction;
@@ -16,13 +17,18 @@ class MainLoop
     private Parameters $parameters;
     private RoleReactionManager $roleReactionManager;
     private HttpServer $httpServer;
+    private Twitch $twitch;
 
+    /**
+     * @throws IntentException
+     */
     public function __construct()
     {
         $this->parameters = Parameters::getInstance();
         $this->roleReactionManager = new RoleReactionManager;
         $this->discord = new Discord(['token' => $this->parameters->discordToken]);
         $this->httpServer = new HttpServer($this->discord->getLoop());
+        $this->twitch = new Twitch($this->discord->getLoop());
     }
 
     /**
@@ -30,6 +36,8 @@ class MainLoop
      */
     public function run(): never
     {
+        $this->twitch->setup();
+
         $this->discord->on(
             'ready',
             function (Discord $discord) {

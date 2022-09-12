@@ -24,7 +24,7 @@ $RSYNC_CMD $LOCAL_PROJECT_PATH/src/ $REMOTE_SERVER:$REMOTE_PROJECT_PATH/src
 $RSYNC_CMD $LOCAL_PROJECT_PATH/composer.json $REMOTE_SERVER:$REMOTE_PROJECT_PATH
 $RSYNC_CMD $LOCAL_PROJECT_PATH/composer.lock $REMOTE_SERVER:$REMOTE_PROJECT_PATH
 $RSYNC_CMD $LOCAL_PROJECT_PATH/main.php $REMOTE_SERVER:$REMOTE_PROJECT_PATH
-$RSYNC_CMD $LOCAL_PROJECT_PATH/supervisor.conf $REMOTE_SERVER:$REMOTE_PROJECT_PATH
+$RSYNC_CMD $LOCAL_PROJECT_PATH/supervisor.conf.dist $REMOTE_SERVER:$REMOTE_PROJECT_PATH
 
 echo
 echo "===================="
@@ -40,8 +40,10 @@ echo "= Reload supervisord ="
 echo "======================"
 echo
 
-ssh $REMOTE_SERVER "cd $REMOTE_PROJECT_PATH && sed -e \"s,___project__dir___,$REMOTE_PROJECT_PATH,g\" supervisor.conf.dist > supervisor.conf && supervisorctl restart all"
-#                   ^^^^^^^^^^^^^^^^^^^^^^^    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^---------------------------------------------------    ^^^^^^^^^^^^^^^^^^^^^^^^^
-#                   Go in correct directory    Generate supervisor conf with correct path                                                  Ask supervisor to re-read conf
+ssh $REMOTE_SERVER "cd $REMOTE_PROJECT_PATH && sed -e \"s,___project__dir___,$REMOTE_PROJECT_PATH,g\" supervisor.conf.dist > supervisor.conf"
+#                   ^^^^^^^^^^^^^^^^^^^^^^^    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#                   Go in correct directory    Generate supervisor conf with correct path
+ssh $REMOTE_SERVER "supervisorctl update all && supervisorctl restart discordbotwebcretaire:"
+
 echo
 echo "All done :)"
