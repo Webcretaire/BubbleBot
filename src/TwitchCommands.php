@@ -43,6 +43,7 @@ class TwitchCommands
      */
     public function matchCommand(array $parts, bool $isMod, string $user): string
     {
+        // Hardcoded commands
         if ($parts[0] == 'addcmd' && $isMod) {
             $this->addCommand($parts[1], join(' ', array_slice($parts, 2)));
             return "Command {$parts[1]} added :)";
@@ -52,29 +53,30 @@ class TwitchCommands
             return "Command {$parts[1]} removed";
         }
 
+        // User (mod) made commands
         $cmd = $this->configData['commands'][$parts[0]];
 
         if (!isset($cmd))
             return '';
 
-        return join(
-            ' ',
-            array_map(
-                function ($el) use ($parts, $user) {
-                    if (!preg_match('/\$\{(.*)\}/', $el, $matches)) return $el;
+        // Look for parameters to replace
+        preg_match_all('/\$\{([\da-zA-Z]+)\}/', $cmd, $matches);
 
-                    $arg = trim($matches[1]);
+        $out = $cmd;
+        // Iterate over each parameter to replace and update the final string
+        foreach(array_unique($matches[0]) as $rawParameter) {
+            $parameter = substr($rawParameter, 2, -1); // Remove "${" and "}"
 
-                    if ($arg == 'user') return $user;
+            $substitute = '';
+            if ($parameter == 'user') $substitute = $user;
 
-                    if ($position = intval($arg))
-                        return $parts[$position];
+            if ($position = intval($parameter))
+                $substitute = $parts[$position];
 
-                    return '';
-                },
-                explode(' ', $cmd)
-            )
-        );
+            $out = str_replace($rawParameter, $substitute, $out);
+        }
+
+        return $out;
     }
 
     private function addCommand(string $name, string $val): void
