@@ -43,6 +43,15 @@ class TwitchCommands
      */
     public function matchCommand(array $parts, bool $isMod, string $user): string
     {
+        if ($parts[0] == 'addcmd' && $isMod) {
+            $this->addCommand($parts[1], join(' ', array_slice($parts, 2)));
+            return "Command {$parts[1]} added :)";
+        }
+        if ($parts[0] == 'delcmd' && $isMod) {
+            $this->removeCommand($parts[1]);
+            return "Command {$parts[1]} removed";
+        }
+
         $cmd = $this->configData['commands'][$parts[0]];
 
         if (!isset($cmd))
@@ -68,12 +77,14 @@ class TwitchCommands
         );
     }
 
-    private function addCommand(string $name, string $val) {
+    private function addCommand(string $name, string $val): void
+    {
         $this->configData['commands'][$name] = $val;
         $this->updateConfigOnDisk();
     }
 
-    private function removeCommand(string $name, string $val) {
+    private function removeCommand(string $name): void
+    {
         unset($this->configData['commands'][$name]);
         $this->updateConfigOnDisk();
     }
