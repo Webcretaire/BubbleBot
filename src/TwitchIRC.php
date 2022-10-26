@@ -6,11 +6,12 @@ use React\EventLoop\LoopInterface;
 use React\Socket\ConnectionInterface;
 use React\Socket\Connector;
 
-class Twitch
+class TwitchIRC
 {
-    protected LoopInterface $loop;
+    private LoopInterface $loop;
 
     private string $secret;
+
     private string $nick;
 
     /** @var TwitchChannel[] */
@@ -18,15 +19,19 @@ class Twitch
 
     private TwitchCommands $commands;
 
-    protected Connector $connector;
+    private Parameters $parameters;
+
+    private Connector $connector;
 
     public ?ConnectionInterface $connection = null;
 
-    function __construct(LoopInterface $loop)
+    function __construct(LoopInterface $loop, Parameters $parameters)
     {
+        $this->parameters = $parameters;
+
         $this->loop      = $loop;
-        $this->secret    = $_ENV['TWITCH_SECRET'];
-        $this->nick      = $_ENV['TWITCH_NICK'];
+        $this->secret    = $this->parameters->twitchOathSecret;
+        $this->nick      = $this->parameters->twitchNick;
         $this->channels  = [];
         $this->connector = new Connector([], $this->loop);
         $this->commands  = new TwitchCommands();
@@ -46,7 +51,7 @@ class Twitch
                 $twitch->initIRC($connection);
 
                 $connection->on('data', fn($data) => $twitch->process($data, $connection));
-                $connection->on('close', fn() => '=== problem');
+                $connection->on('close', fn() => exit(42));
             }
         );
     }
@@ -63,6 +68,7 @@ class Twitch
         if (!$this->connection) return;
 
         $chan = strtolower($chan);
+        echo "Join Twitch IRC channel $chan", PHP_EOL;
         $this->connection->write("JOIN #" . $chan . "\n");
         if (!isset($this->channels[$chan])) $this->channels[$chan] = new TwitchChannel($this, $this->commands, $chan);
     }
@@ -75,12 +81,17 @@ class Twitch
         unset ($this->channels[$channel->name]);
     }
 
+    public function getChannel(string $chan): ?TwitchChannel
+    {
+        return $this->channels[$chan];
+    }
+
     protected function initIRC(ConnectionInterface $connection): void
     {
         $connection->write("PASS " . $this->secret . "\n");
         $connection->write("NICK " . $this->nick . "\n");
         $connection->write("CAP REQ :twitch.tv/membership twitch.tv/commands twitch.tv/tags\n");
-        $this->joinChannel($_ENV['TWITCH_CHANNEL']);
+        $this->joinChannel($this->parameters->twitchChannel);
     }
 
     protected function pingPong(ConnectionInterface $connection): void

@@ -2,32 +2,31 @@
 
 namespace App;
 
-use Discord\Builders\MessageBuilder;
-use Discord\Http\Exceptions\NoPermissionsException;
-use Discord\Parts\Channel\Channel;
 use Psr\Http\Message\ServerRequestInterface;
 use React\EventLoop\LoopInterface;
-use React\Http\Message\Response;
 use React\Http\HttpServer as ReactHttpServer;
+use React\Http\Message\Response;
 use React\Promise\ExtendedPromiseInterface;
 use React\Socket\SocketServer;
 use function React\Promise\resolve;
 
 class HttpServer
 {
-    const GITHUB_AUTH_HEADER = 'X-Hub-Signature-256';
-
     private Parameters $parameters;
 
-    /** @var Channel[] */
-    private array $lsaNotificationChannels;
+    private TwitchAPI $twitchAPI;
+
+    private GithubAPI $githubAPI;
 
     /**
      * @param LoopInterface $loop
      */
-    public function __construct(LoopInterface $loop)
+    public function __construct(LoopInterface $loop, Parameters $parameters, TwitchAPI $twitchAPI, GithubAPI $githubAPI)
     {
-        $this->parameters = Parameters::getInstance();
+        $this->parameters = $parameters;
+
+        $this->twitchAPI = $twitchAPI;
+        $this->githubAPI = $githubAPI;
 
         $server = new ReactHttpServer($loop, fn(ServerRequestInterface $r) => $this->onRequest($r));
         $socket = new SocketServer(sprintf('tcp://127.0.0.1:%d', $this->parameters->httpPort), [], $loop);
@@ -48,7 +47,7 @@ class HttpServer
     }
 
     /**
-     * @param int    $code
+     * @param int $code
      * @param string $body
      * @param string $contentType
      *
@@ -59,10 +58,6 @@ class HttpServer
         return resolve(new Response($code, ['Content-Type' => $contentType], $body));
     }
 
-    public function setLsaNotificationChannel(Channel $channel): void
-    {
-        $this->lsaNotificationChannels[$channel->guild->id] = $channel;
-    }
 
     private function onRequest(ServerRequestInterface $request): ExtendedPromiseInterface
     {
@@ -78,63 +73,13 @@ class HttpServer
         );
 
         try {
-            switch ($request->getUri()->getPath()) {
-                case "/github":
-                    return $this->onGithubRequest($request);
-                    break;
-                default:
-                    return self::httpAsyncResponse(404, "This endpoint doesn't exist.");
-            }
+            return match ($request->getUri()->getPath()) {
+                "/github" => $this->githubAPI->onRequest($request),
+                "/twitch" => $this->twitchAPI->onRequest($request),
+                default => self::httpAsyncResponse(404, "This endpoint doesn't exist."),
+            };
         } catch (\Exception $e) {
             return $errorCallback($e);
         }
-    }
-
-    /**
-     * @param ServerRequestInterface $request
-     *
-     * @return ExtendedPromiseInterface
-     *
-     * @throws NoPermissionsException
-     */
-    private function onGithubRequest(ServerRequestInterface $request): ExtendedPromiseInterface
-    {
-        $header = $request->getHeader(self::GITHUB_AUTH_HEADER);
-
-        // No Github header, this is a bad request
-        if (empty($header))
-            return self::httpAsyncResponse(401);
-
-        // Authenticate Github using webhook's secret (hash body with secret to check header)
-        $body = (string)$request->getBody();
-        if (current($header) !== 'sha256=' . hash_hmac('sha256', $body, $this->parameters->githubSecret))
-            return self::httpAsyncResponse(403);
-
-        // Process data from GitHub
-        $run = json_decode($body)->workflow_run;
-        if (
-            isset($run->name) && $run->name === "pages build and deployment"
-            && $run->status === "completed"
-            && $run->conclusion === "success"
-        ) {
-            $message = $run?->head_commit?->message;
-            if ($message && str_starts_with($message, 'deploy: ')) {
-                $head_commit = substr(explode(': ', $run->head_commit->message)[1], 0, 10);
-                foreach ($this->lsaNotificationChannels as $channel) {
-                    $role       = $channel->guild->roles->get('name', 'LSA ping');
-                    $pingAndNew = $role ? "<@&{$role->id}> new" : "New";
-                    $channel->sendMessage(MessageBuilder::new()->setContent(
-                        "**New LiveSplitAnalyzer update**
-
-$pingAndNew version of the website is deployed, corresponding to commit $head_commit: https://github.com/Webcretaire/LiveSplitAnalyzer/commit/$head_commit
-
-See this version live here: https://webcretaire.github.io/LiveSplitAnalyzer"
-                    ));
-                }
-            }
-        }
-
-        // Success
-        return self::httpAsyncResponse();
     }
 }

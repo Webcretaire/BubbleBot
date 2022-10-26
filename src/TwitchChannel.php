@@ -4,22 +4,22 @@ namespace App;
 
 class TwitchChannel
 {
-    private Twitch $twitch;
+    private TwitchIRC $twitchIRC;
 
     private TwitchCommands $commands;
 
     public readonly string $name;
 
-    function __construct(Twitch $twitch, TwitchCommands $commands, string $name)
+    function __construct(TwitchIRC $twitchIRC, TwitchCommands $commands, string $name)
     {
-        $this->twitch   = $twitch;
-        $this->commands = $commands;
-        $this->name     = $name;
+        $this->twitchIRC = $twitchIRC;
+        $this->commands  = $commands;
+        $this->name      = $name;
     }
 
     public function sendMessage(string $data): void
     {
-        $this->twitch->connection->write("PRIVMSG #$this->name :$data\n");
+        $this->twitchIRC->connection->write("PRIVMSG #$this->name :$data\n");
     }
 
     public function isMod(string $user, array $tags = []): bool

@@ -35,9 +35,9 @@ class RoleReactionManager
 - :keyboard: New LiveSplitAnalyzer activity
 - :tv: Streams on Twitch";
 
-    public function __construct()
+    public function __construct(Parameters $parameters)
     {
-        $this->parameters = Parameters::getInstance();
+        $this->parameters = $parameters;
     }
 
     private function roleNameFromEmoji(Emoji $emoji): string
@@ -78,9 +78,9 @@ class RoleReactionManager
 
         all([$rolePromise, $memberPromise])
             ->then(function (array $results) {
-                /** @var Role */
+                /** @var Role $results */
                 $role = $results[0];
-                /** @var Member */
+                /** @var Member $member */
                 $member = $results[1];
 
                 // Don't add roles to bot

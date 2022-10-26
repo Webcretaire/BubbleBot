@@ -26,7 +26,7 @@ class TwitchCommands
             $this->updateConfigOnDisk();
         }
 
-        echo '~~~ Config data:';
+        echo '~~~ Config data:', PHP_EOL;
         var_dump($this->configData);
     }
 

@@ -10,6 +10,8 @@ use Discord\Parts\WebSockets\MessageReaction;
 use Discord\Parts\Channel\Message;
 use Discord\Parts\Guild\Guild;
 use Discord\WebSockets\Event;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
 
 class MainLoop
 {
@@ -17,18 +19,29 @@ class MainLoop
     private Parameters $parameters;
     private RoleReactionManager $roleReactionManager;
     private HttpServer $httpServer;
-    private Twitch $twitch;
+    private TwitchIRC $twitchIRC;
+    private TwitchAPI $twitchApi;
+    private GithubAPI $githubApi;
 
     /**
      * @throws IntentException
      */
     public function __construct()
     {
-        $this->parameters = Parameters::getInstance();
-        $this->roleReactionManager = new RoleReactionManager;
-        $this->discord = new Discord(['token' => $this->parameters->discordToken]);
-        $this->httpServer = new HttpServer($this->discord->getLoop());
-        $this->twitch = new Twitch($this->discord->getLoop());
+        $this->parameters = new Parameters();
+
+        $logger = new Logger('DiscordLogger');
+        $logger->pushHandler(new StreamHandler('php://stdout', Logger::INFO));
+
+        $this->discord = new Discord(['token' => $this->parameters->discordToken, 'logger' => $logger]);
+        $loop          = $this->discord->getLoop();
+
+        $this->roleReactionManager = new RoleReactionManager($this->parameters);
+        $this->twitchIRC           = new TwitchIRC($loop, $this->parameters);
+        $this->githubApi           = new GithubAPI($this->parameters);
+        $this->twitchApi           = new TwitchAPI($loop, $this->parameters, $this->twitchIRC);
+        $this->httpServer          = new HttpServer($loop, $this->parameters, $this->twitchApi, $this->githubApi);
+        $this->twitchApi->authenticate()->then(fn() => $this->twitchApi->setupWebhook());
     }
 
     /**
@@ -36,7 +49,7 @@ class MainLoop
      */
     public function run(): never
     {
-        $this->twitch->setup();
+        $this->twitchIRC->setup();
 
         $this->discord->on(
             'ready',
@@ -55,17 +68,22 @@ class MainLoop
         );
 
         // Listen for messages
-        $this->discord->on(Event::MESSAGE_CREATE, fn (Message $m, Discord $d) => $this->onMessageCreate($m, $d));
+        $this->discord->on(Event::MESSAGE_CREATE, fn(Message $m, Discord $d) => $this->onMessageCreate($m, $d));
 
         // Setup when connecting to a server
-        $this->discord->on(Event::GUILD_CREATE, fn (Guild $g, Discord $d) => $this->onGuildConnect($g, $d));
+        $this->discord->on(Event::GUILD_CREATE, fn(Guild $g, Discord $d) => $this->onGuildConnect($g, $d));
 
-        $this->discord->on(Event::MESSAGE_REACTION_ADD, fn (MessageReaction $r, Discord $d) => $this->onReactionAdd($r, $d));
-        $this->discord->on(Event::MESSAGE_REACTION_REMOVE, fn (MessageReaction $r, Discord $d) => $this->onReactionRemove($r, $d));
+        $this->discord->on(Event::MESSAGE_REACTION_ADD,
+            fn(MessageReaction $r, Discord $d) => $this->onReactionAdd($r, $d));
+        $this->discord->on(Event::MESSAGE_REACTION_REMOVE,
+            fn(MessageReaction $r, Discord $d) => $this->onReactionRemove($r, $d));
 
         $this->discord->run();
     }
 
+    /**
+     * @throws \Exception
+     */
     private function onReactionAdd(MessageReaction $reaction, Discord $discord): void
     {
         $reaction->channel->messages->fetch($reaction->message_id)
@@ -75,6 +93,9 @@ class MainLoop
             });
     }
 
+    /**
+     * @throws \Exception
+     */
     private function onReactionRemove(MessageReaction $reaction, Discord $discord): void
     {
         $reaction->channel->messages->fetch($reaction->message_id)
@@ -93,7 +114,7 @@ class MainLoop
             if ($channel->name === $this->parameters->roleChannelName)
                 $this->roleReactionManager->checkAndPostReactionMessage($channel);
             if ($channel->name === $this->parameters->lsaNotificationChannel)
-                $this->httpServer->setLsaNotificationChannel($channel);
+                $this->githubApi->setLsaNotificationChannel($channel);
         }
     }
 
@@ -103,7 +124,7 @@ class MainLoop
      * @param Message $message
      * @param Discord $discord
      */
-    private function onMessageCreate(Message $message, Discord $discord)
+    private function onMessageCreate(Message $message, Discord $discord): void
     {
         if ($this->roleReactionManager->isReactionRoleMessage($message))
             $this->roleReactionManager->setReactionRoleMessage($message->channel->guild, $message);

@@ -40,10 +40,11 @@ echo "= Reload supervisord ="
 echo "======================"
 echo
 
-ssh $REMOTE_SERVER "cd $REMOTE_PROJECT_PATH && sed -e \"s,___project__dir___,$REMOTE_PROJECT_PATH,g\" supervisor.conf.dist > supervisor.conf"
+ssh $REMOTE_SERVER "supervisorctl stop discordbotwebcretaire:"
+ssh $REMOTE_SERVER "cd $REMOTE_PROJECT_PATH && rm logs/*.log* && sed -e \"s,___project__dir___,$REMOTE_PROJECT_PATH,g\" supervisor.conf.dist > supervisor.conf"
 #                   ^^^^^^^^^^^^^^^^^^^^^^^    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #                   Go in correct directory    Generate supervisor conf with correct path
-ssh $REMOTE_SERVER "supervisorctl update all && supervisorctl restart discordbotwebcretaire:"
+ssh $REMOTE_SERVER "supervisorctl update all && supervisorctl start discordbotwebcretaire:"
 
 echo
 echo "All done :)"
