@@ -60,18 +60,24 @@ class TwitchCommands
             return '';
 
         // Look for parameters to replace
-        preg_match_all('/\$\{([\da-zA-Z]+)\}/', $cmd, $matches);
+        preg_match_all('/\$\{([\d\s+a-zA-Z]+)\}/', $cmd, $matches);
 
         $out = $cmd;
         // Iterate over each parameter to replace and update the final string
-        foreach(array_unique($matches[0]) as $rawParameter) {
-            $parameter = substr($rawParameter, 2, -1); // Remove "${" and "}"
+        foreach (array_unique($matches[0]) as $rawParameter) {
+            $parameter = trim(substr($rawParameter, 2, -1)); // Remove "${" and "}"
 
             $substitute = '';
-            if ($parameter == 'user') $substitute = $user;
-
-            if ($position = intval($parameter))
-                $substitute = $parts[$position];
+            if ($parameter == 'user')
+                $substitute = $user;
+            else if ($parameter == '0')
+                $substitute = join(' ', array_slice($parts, 1));
+            else if ($position = intval($parameter))
+                $substitute = $parts[$position] ?? '';
+            else if (str_starts_with($parameter, '++'))
+                $substitute = $this->incrementVariable(trim(substr($parameter, 2)));
+            else
+                $substitute = $this->configData['variables'][$parameter] ?? '';
 
             $out = str_replace($rawParameter, $substitute, $out);
         }
@@ -89,5 +95,15 @@ class TwitchCommands
     {
         unset($this->configData['commands'][$name]);
         $this->updateConfigOnDisk();
+    }
+
+    private function incrementVariable(string $varName): int
+    {
+        $value = $this->configData['variables'][$varName] ?? 0;
+        ++$value;
+        $this->configData['variables'][$varName] = $value;
+        $this->updateConfigOnDisk();
+
+        return $value;
     }
 }

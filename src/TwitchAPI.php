@@ -71,14 +71,10 @@ class TwitchAPI
 
     public function verifySecret(ServerRequestInterface $request): int
     {
-        $messageId = current($request->getHeader('Twitch-Eventsub-Message-Id'));
-
-        if (!$messageId)
-            return 401;
-
+        $messageId        = current($request->getHeader('Twitch-Eventsub-Message-Id'));
         $messageTimestamp = current($request->getHeader('Twitch-Eventsub-Message-Timestamp'));
 
-        if (!$messageTimestamp)
+        if (!$messageTimestamp || !$messageId)
             return 401;
 
         $body = (string)$request->getBody();
@@ -124,10 +120,15 @@ class TwitchAPI
         return HttpServer::httpAsyncResponse();
     }
 
-    public function setupWebhook(): void
+    public function setupWebhooks(): PromiseInterface
+    {
+        return $this->removeAllWebhooks()->then(fn() => $this->createWebhooks());
+    }
+
+    private function removeAllWebhooks(): PromiseInterface
     {
         // Get the list of existing webhooks
-        $this->client->get(
+        return $this->client->get(
             "https://api.twitch.tv/helix/eventsub/subscriptions",
             [
                 'Authorization' => "Bearer {$this->accessToken}",
@@ -152,48 +153,54 @@ class TwitchAPI
                         $ids
                     )
                 );
-            })
-            // Setup new webhook
-            ->then(fn() => all(array_map(
-                fn($event) => $this->client->post(
-                    'https://api.twitch.tv/helix/eventsub/subscriptions',
-                    [
-                        'Authorization' => "Bearer {$this->accessToken}",
-                        'Client-Id'     => $this->parameters->twitchClientId,
-                        'Content-Type'  => 'application/json'
-                    ],
-                    json_encode([
-                        "type"      => $event,
-                        "version"   => "1",
-                        "condition" => ["broadcaster_user_id" => $this->parameters->twitchChannelId],
-                        "transport" => [
-                            "method"   => "webhook",
-                            "callback" => $this->parameters->twitchWebhookUrl,
-                            "secret"   => $this->verificationSecret
-                        ]
-                    ], JSON_UNESCAPED_SLASHES)
-                ),
-                ['channel.update', 'stream.online', 'stream.offline']
-            )))
-            ->then(function (ResponseInterface $response) {
-                echo 'Subscription to webhooks successful', PHP_EOL;
-            }, function (\Exception $e) {
-                echo 'Error: ' . $e->getMessage() . PHP_EOL;
-                exit(2);
             });
+    }
+
+    public function createWebhooks(): PromiseInterface
+    {
+        return all(array_map(
+            fn($event) => $this->client->post(
+                'https://api.twitch.tv/helix/eventsub/subscriptions',
+                [
+                    'Authorization' => "Bearer {$this->accessToken}",
+                    'Client-Id'     => $this->parameters->twitchClientId,
+                    'Content-Type'  => 'application/json'
+                ],
+                json_encode([
+                    "type"      => $event,
+                    "version"   => "1",
+                    "condition" => ["broadcaster_user_id" => $this->parameters->twitchChannelId],
+                    "transport" => [
+                        "method"   => "webhook",
+                        "callback" => $this->parameters->twitchWebhookUrl,
+                        "secret"   => $this->verificationSecret
+                    ]
+                ], JSON_UNESCAPED_SLASHES)
+            ),
+            ['channel.update', 'stream.online', 'stream.offline']
+        ))->then(function (ResponseInterface $response) {
+            echo 'Subscription to webhooks successful', PHP_EOL;
+        }, function (\Exception $e) {
+            echo 'Error: ' . $e->getMessage() . PHP_EOL;
+            exit(2);
+        });
     }
 
     private function onStreamOnline(\stdClass $data): void
     {
-        if ($channel = $this->twitchIRC->getChannel($data->event->broadcaster_user_login))
+        if ($channel = $this->twitchIRC->getChannel($data->event->broadcaster_user_login)) {
             $channel->sendMessage("Hello everyone Burgy Did anyone snail me?");
+            $channel->resetSeenUsers();
+        }
         echo "Twitch channel goes live", PHP_EOL;
     }
 
     private function onStreamOffline(\stdClass $data): void
     {
-        if ($channel = $this->twitchIRC->getChannel($data->event->broadcaster_user_login))
+        if ($channel = $this->twitchIRC->getChannel($data->event->broadcaster_user_login)) {
             $channel->sendMessage("Bye everyone, hope you enjoyed the stream celesteSquish");
+            $channel->resetSeenUsers();
+        }
         echo "Twitch channel ends stream", PHP_EOL;
     }
 

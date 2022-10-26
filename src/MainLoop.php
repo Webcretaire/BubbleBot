@@ -41,7 +41,6 @@ class MainLoop
         $this->githubApi           = new GithubAPI($this->parameters);
         $this->twitchApi           = new TwitchAPI($loop, $this->parameters, $this->twitchIRC);
         $this->httpServer          = new HttpServer($loop, $this->parameters, $this->twitchApi, $this->githubApi);
-        $this->twitchApi->authenticate()->then(fn() => $this->twitchApi->setupWebhook());
     }
 
     /**
@@ -50,6 +49,7 @@ class MainLoop
     public function run(): never
     {
         $this->twitchIRC->setup();
+        $this->twitchApi->authenticate()->then(fn() => $this->twitchApi->setupWebhooks());
 
         $this->discord->on(
             'ready',
@@ -78,6 +78,7 @@ class MainLoop
         $this->discord->on(Event::MESSAGE_REACTION_REMOVE,
             fn(MessageReaction $r, Discord $d) => $this->onReactionRemove($r, $d));
 
+        // Discord handles the main event loop, which we reuse in all our components to do stuff asynchronously
         $this->discord->run();
     }
 

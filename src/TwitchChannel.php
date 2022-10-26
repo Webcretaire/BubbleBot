@@ -10,6 +10,8 @@ class TwitchChannel
 
     public readonly string $name;
 
+    private array $seenUsers = [];
+
     function __construct(TwitchIRC $twitchIRC, TwitchCommands $commands, string $name)
     {
         $this->twitchIRC = $twitchIRC;
@@ -30,6 +32,11 @@ class TwitchChannel
     public function processMessage(string $user, string $message, array $tags): void
     {
         $response = '';
+        if (!isset($this->seenUsers[$user])) {
+            $this->sendMessage("Hello $user, welcome to today's stream peepoArrive");
+            $this->seenUsers[$user] = true;
+        }
+
         if (str_starts_with($message, '!'))
             $response = $this->commands->matchCommand(
                 explode(' ', substr($message, 1)), // Remove ! before exploding message words
@@ -38,5 +45,10 @@ class TwitchChannel
             );
         if ($response)
             $this->sendMessage("$response");
+    }
+
+    public function resetSeenUsers(): void
+    {
+        $this->seenUsers = [];
     }
 }
