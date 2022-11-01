@@ -72,7 +72,7 @@ class TwitchCommands
                 $substitute = $user;
             else if ($parameter == '0')
                 $substitute = join(' ', array_slice($parts, 1));
-            else if ($position = intval($parameter))
+            else if ($position = intval($parameter)) // Parameter is a valid integer
                 $substitute = $parts[$position] ?? '';
             else if (str_starts_with($parameter, '++'))
                 $substitute = $this->incrementVariable(trim(substr($parameter, 2)));

@@ -107,7 +107,7 @@ class TwitchIRC
         }
         if (str_contains($data, 'PRIVMSG')) {
             preg_match(
-                "/^(.*):([a-zA-Z_]+)![a-zA-Z_]+@[a-zA-Z_]+\.tmi\.twitch\.tv PRIVMSG #([a-zA-Z_]+) :(.*)\n$/",
+                "/^(.*):([\da-zA-Z_]+)![\da-zA-Z_]+@[\da-zA-Z_]+\.tmi\.twitch\.tv PRIVMSG #([\da-zA-Z_]+) :(.*)\n$/",
                 $data,
                 $matches
             );
