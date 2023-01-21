@@ -197,10 +197,9 @@ class TwitchAPI
 
     private function onStreamOffline(\stdClass $data): void
     {
-        if ($channel = $this->twitchIRC->getChannel($data->event->broadcaster_user_login)) {
+        if ($channel = $this->twitchIRC->getChannel($data->event->broadcaster_user_login))
             $channel->sendMessage("Bye everyone, hope you enjoyed the stream celesteSquish");
-            $channel->resetSeenUsers();
-        }
+
         echo "Twitch channel ends stream", PHP_EOL;
     }
 

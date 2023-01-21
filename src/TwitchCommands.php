@@ -2,37 +2,16 @@
 
 namespace App;
 
-use Symfony\Component\Yaml\Yaml;
-
 class TwitchCommands
 {
-    const CONFIG_PATH = __DIR__ . "/../twitch_config.yml";
+    private TwitchQuoteManager $quoteManager;
 
-    private array $configData = [];
+    private TwitchConfig $config;
 
     public function __construct()
     {
-        if (file_exists(self::CONFIG_PATH)) {
-            $rawData = Yaml::parse(file_get_contents(self::CONFIG_PATH));
-            if (isset($rawData)) $this->configData = $rawData;
-        }
-
-        if (!isset($this->configData['commands'])) {
-            $this->configData['commands'] = ['hi' => 'Hello :)'];
-            $this->updateConfigOnDisk();
-        }
-        if (!isset($this->configData['variables'])) {
-            $this->configData['variables'] = [];
-            $this->updateConfigOnDisk();
-        }
-
-        echo '~~~ Config data:', PHP_EOL;
-        var_dump($this->configData);
-    }
-
-    private function updateConfigOnDisk(): void
-    {
-        file_put_contents(self::CONFIG_PATH, Yaml::dump($this->configData));
+        $this->config       = new TwitchConfig();
+        $this->quoteManager = new TwitchQuoteManager($this->config);
     }
 
     /**
@@ -53,8 +32,11 @@ class TwitchCommands
             return "Command {$parts[1]} removed";
         }
 
+        if ($parts[0] == 'quote')
+            return $this->quoteManager->matchQuoteCommand(array_slice($parts, 1), $isMod);
+
         // User (mod) made commands
-        $cmd = $this->configData['commands'][$parts[0]];
+        $cmd = $this->config->get('commands', $parts[0]);
 
         if (!isset($cmd))
             return '';
@@ -77,7 +59,7 @@ class TwitchCommands
             else if (str_starts_with($parameter, '++'))
                 $substitute = $this->incrementVariable(trim(substr($parameter, 2)));
             else
-                $substitute = $this->configData['variables'][$parameter] ?? '';
+                $substitute = $this->config->get('variables', $parameter) ?? '';
 
             $out = str_replace($rawParameter, $substitute, $out);
         }
@@ -87,22 +69,19 @@ class TwitchCommands
 
     private function addCommand(string $name, string $val): void
     {
-        $this->configData['commands'][$name] = $val;
-        $this->updateConfigOnDisk();
+        $this->config->set('commands', $name, $val);
     }
 
     private function removeCommand(string $name): void
     {
-        unset($this->configData['commands'][$name]);
-        $this->updateConfigOnDisk();
+        $this->config->delete('commands', $name);
     }
 
     private function incrementVariable(string $varName): int
     {
-        $value = $this->configData['variables'][$varName] ?? 0;
+        $value = $this->config->get('variables', $varName) ?? 0;
         ++$value;
-        $this->configData['variables'][$varName] = $value;
-        $this->updateConfigOnDisk();
+        $this->config->set('variables', $varName, $value);
 
         return $value;
     }
