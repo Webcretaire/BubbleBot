@@ -3,7 +3,7 @@ import {apiUrl}       from '~/composables/api';
 import {initTooltips} from 'flowbite';
 
 const commands = {
-    // Harcoded commands
+    // Hardcoded commands
     'addcmd': '<em>Adds custom command with name ${1}, value is the rest of the original message',
     'delcmd': '<em>Removes custom command with name ${1}</em>',
     'quote': '<em>Displays quote n°${1} or a random one</em>',
@@ -17,6 +17,7 @@ const tooltipContentCommand = (match: string) => {
     if (match == 'user') return 'Username of the person sending the command';
     if (match == '0') return 'Full text following the command name in the original message';
     if (/\d+/.test(match.trim())) return `Word n°${match} after the command name in the original message`;
+
     return 'Unknown variable';
 };
 
