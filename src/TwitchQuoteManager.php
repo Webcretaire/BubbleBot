@@ -6,9 +6,9 @@ class TwitchQuoteManager
 {
     private TwitchConfig $config;
 
-    public function __construct(TwitchConfig $config)
+    public function __construct()
     {
-        $this->config = $config;
+        $this->config = TwitchConfig::getInstance();
     }
 
     public function matchQuoteCommand(array $parts, bool $isMod): string

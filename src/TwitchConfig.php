@@ -10,7 +10,16 @@ class TwitchConfig
 
     private array $configData = [];
 
-    public function __construct()
+    private static ?TwitchConfig $instance = null;
+
+    public static function getInstance(): TwitchConfig
+    {
+        if (!self::$instance) self::$instance = new TwitchConfig();
+
+        return self::$instance;
+    }
+
+    private function __construct()
     {
         if (file_exists(self::CONFIG_PATH)) {
             $rawData = Yaml::parse(file_get_contents(self::CONFIG_PATH));

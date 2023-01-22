@@ -18,15 +18,20 @@ class HttpServer
 
     private GithubAPI $githubAPI;
 
+    private HttpAPI $httpAPI;
+
     /**
      * @param LoopInterface $loop
+     * @param Parameters    $parameters
+     * @param TwitchAPI     $twitchAPI
+     * @param GithubAPI     $githubAPI
      */
     public function __construct(LoopInterface $loop, Parameters $parameters, TwitchAPI $twitchAPI, GithubAPI $githubAPI)
     {
         $this->parameters = $parameters;
-
-        $this->twitchAPI = $twitchAPI;
-        $this->githubAPI = $githubAPI;
+        $this->twitchAPI  = $twitchAPI;
+        $this->githubAPI  = $githubAPI;
+        $this->httpAPI    = new HttpAPI();
 
         $server = new ReactHttpServer($loop, fn(ServerRequestInterface $r) => $this->onRequest($r));
         $socket = new SocketServer(sprintf('tcp://127.0.0.1:%d', $this->parameters->httpPort), [], $loop);
@@ -55,9 +60,15 @@ class HttpServer
      */
     public static function httpAsyncResponse(int $code = 200, string $body = '', string $contentType = 'text/plain'): ExtendedPromiseInterface
     {
-        return resolve(new Response($code, ['Content-Type' => $contentType], $body));
+        return resolve(new Response($code,
+            ['Content-Type' => $contentType, 'Access-Control-Allow-Origin ' => '*'],
+            $body));
     }
 
+    public static function jsonResponse($data): ExtendedPromiseInterface
+    {
+        return self::httpAsyncResponse(200, json_encode($data), 'application/json');
+    }
 
     private function onRequest(ServerRequestInterface $request): ExtendedPromiseInterface
     {
@@ -73,6 +84,9 @@ class HttpServer
         );
 
         try {
+            if (str_starts_with($request->getUri()->getPath(), '/api'))
+                return $this->httpAPI->handle($request);
+
             return match ($request->getUri()->getPath()) {
                 "/github" => $this->githubAPI->onRequest($request),
                 "/twitch" => $this->twitchAPI->onRequest($request),

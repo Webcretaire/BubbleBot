@@ -10,8 +10,8 @@ class TwitchCommands
 
     public function __construct()
     {
-        $this->config       = new TwitchConfig();
-        $this->quoteManager = new TwitchQuoteManager($this->config);
+        $this->config       = TwitchConfig::getInstance();
+        $this->quoteManager = new TwitchQuoteManager();
     }
 
     /**
