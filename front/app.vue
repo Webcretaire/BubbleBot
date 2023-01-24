@@ -17,6 +17,7 @@
             </p>
         </section>
         <command-list/>
+        <quote-list/>
     </main>
 </template>
 

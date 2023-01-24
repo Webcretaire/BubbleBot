@@ -53,7 +53,7 @@ const commandsHtml = computed(() => {
                 <thead class="border-b border-slate-200">
                 <tr>
                     <th class="p-3 pt-2 pb-2">Command</th>
-                    <th class="p-3 pt-2 pb-2">Text</th>
+                    <th class="p-3 pt-2 pb-2">Text or <em>Effect</em></th>
                 </tr>
                 </thead>
                 <tbody>
