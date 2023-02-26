@@ -14,7 +14,6 @@ use Monolog\Handler\StreamHandler;
 use Monolog\Level;
 use Monolog\Logger;
 use Ratchet\App;
-use Ratchet\Server\EchoServer;
 
 class MainLoop
 {
