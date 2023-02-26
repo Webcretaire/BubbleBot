@@ -11,7 +11,10 @@ use Discord\Parts\Channel\Message;
 use Discord\Parts\Guild\Guild;
 use Discord\WebSockets\Event;
 use Monolog\Handler\StreamHandler;
+use Monolog\Level;
 use Monolog\Logger;
+use Ratchet\App;
+use Ratchet\Server\EchoServer;
 
 class MainLoop
 {
@@ -22,6 +25,8 @@ class MainLoop
     private TwitchIRC $twitchIRC;
     private TwitchAPI $twitchApi;
     private GithubAPI $githubApi;
+    private App $ratchetApp;
+    private WsServer $wsServer;
 
     /**
      * @throws IntentException
@@ -31,16 +36,18 @@ class MainLoop
         $this->parameters = new Parameters();
 
         $logger = new Logger('DiscordLogger');
-        $logger->pushHandler(new StreamHandler('php://stdout', Logger::INFO));
+        $logger->pushHandler(new StreamHandler('php://stdout', Level::Info));
 
         $this->discord = new Discord(['token' => $this->parameters->discordToken, 'logger' => $logger]);
         $loop          = $this->discord->getLoop();
 
         $this->roleReactionManager = new RoleReactionManager($this->parameters);
-        $this->twitchIRC           = new TwitchIRC($loop, $this->parameters);
+        $this->wsServer            = new WsServer($this->parameters);
+        $this->twitchIRC           = new TwitchIRC($loop, $this->parameters, $this->wsServer);
         $this->githubApi           = new GithubAPI($this->parameters);
         $this->twitchApi           = new TwitchAPI($loop, $this->parameters, $this->twitchIRC);
         $this->httpServer          = new HttpServer($loop, $this->parameters, $this->twitchApi, $this->githubApi);
+        $this->ratchetApp          = new App($this->parameters->webDomain, 8080, '0.0.0.0', $loop);
     }
 
     /**
@@ -77,6 +84,8 @@ class MainLoop
             fn(MessageReaction $r, Discord $d) => $this->onReactionAdd($r, $d));
         $this->discord->on(Event::MESSAGE_REACTION_REMOVE,
             fn(MessageReaction $r, Discord $d) => $this->onReactionRemove($r, $d));
+
+        $this->ratchetApp->route('/events', $this->wsServer, ['*']);
 
         // Discord handles the main event loop, which we reuse in all our components to do stuff asynchronously
         $this->discord->run();

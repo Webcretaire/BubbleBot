@@ -12,11 +12,14 @@ class TwitchChannel
 
     private array $seenUsers = [];
 
-    function __construct(TwitchIRC $twitchIRC, TwitchCommands $commands, string $name)
+    private WsServer $wsServer;
+
+    function __construct(WsServer $wsServer, TwitchIRC $twitchIRC, TwitchCommands $commands, string $name)
     {
         $this->twitchIRC = $twitchIRC;
         $this->commands  = $commands;
         $this->name      = $name;
+        $this->wsServer  = $wsServer;
     }
 
     public function sendMessage(string $data): void
@@ -34,6 +37,7 @@ class TwitchChannel
         $response = '';
         if (!isset($this->seenUsers[$user])) {
             $this->sendMessage("Hello $user, welcome to today's stream peepoArrive");
+            $this->wsServer->sendEvent('greet', ['user' => $user]);
             $this->seenUsers[$user] = true;
         }
 

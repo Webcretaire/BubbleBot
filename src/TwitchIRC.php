@@ -25,7 +25,9 @@ class TwitchIRC
 
     public ?ConnectionInterface $connection = null;
 
-    function __construct(LoopInterface $loop, Parameters $parameters)
+    private WsServer $wsServer;
+
+    function __construct(LoopInterface $loop, Parameters $parameters, WsServer $wsServer)
     {
         $this->parameters = $parameters;
 
@@ -35,6 +37,7 @@ class TwitchIRC
         $this->channels  = [];
         $this->connector = new Connector([], $this->loop);
         $this->commands  = new TwitchCommands();
+        $this->wsServer  = $wsServer;
     }
 
     public function setup(): void
@@ -70,7 +73,12 @@ class TwitchIRC
         $chan = strtolower($chan);
         echo "Join Twitch IRC channel $chan", PHP_EOL;
         $this->connection->write("JOIN #" . $chan . "\n");
-        if (!isset($this->channels[$chan])) $this->channels[$chan] = new TwitchChannel($this, $this->commands, $chan);
+        if (!isset($this->channels[$chan])) $this->channels[$chan] = new TwitchChannel(
+            $this->wsServer,
+            $this,
+            $this->commands,
+            $chan
+        );
     }
 
     public function leaveChannel(TwitchChannel $channel): void

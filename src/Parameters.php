@@ -21,6 +21,8 @@ class Parameters
     public readonly string $twitchClientSecret;
     public readonly string $twitchWebhookUrl;
     public readonly string $twitchChannelId;
+    public readonly string $webDomain;
+    public readonly string $overlayKey;
 
     function __construct()
     {
@@ -39,5 +41,7 @@ class Parameters
         $this->twitchClientId         = $_ENV['TWITCH_CLIENT_ID'];
         $this->twitchClientSecret     = $_ENV['TWITCH_CLIENT_SECRET'];
         $this->twitchWebhookUrl       = $_ENV['TWITCH_WEBHOOK_URL'];
+        $this->webDomain              = $_ENV['WEB_DOMAIN'];
+        $this->overlayKey             = $_ENV['OVERLAY_KEY'];
     }
 }
