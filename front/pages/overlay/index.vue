@@ -8,7 +8,7 @@ interface User {
     position: string
 }
 
-const greetUsers  = ref<User[]>([]);
+const greetUsers = ref<User[]>([]);
 
 const conn = new WebSocket(`${config.public.WEBSOCKET_BASE_URL}/events`);
 
@@ -27,7 +27,7 @@ conn.onmessage = function (e) {
         })(currentId);
     }
 };
-conn.onopen    = (e: Event) => conn.send(JSON.stringify({action: 'auth', key: route.params.key}));
+conn.onopen    = (e: Event) => conn.send(JSON.stringify({action: 'auth', key: route.query.key}));
 </script>
 
 <template>

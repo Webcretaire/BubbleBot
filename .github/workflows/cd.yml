@@ -32,7 +32,7 @@ jobs:
         working-directory: ./front
         env:
           BUBBLEBOT_API_PATH: ${{ secrets.BUBBLEBOT_API_PATH }}
-          OVERLAY_KEY: ${{ secrets.OVERLAY_KEY }}
+          WEBSOCKET_BASE_URL: ${{ secrets.WEBSOCKET_BASE_URL }}
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
