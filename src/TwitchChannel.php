@@ -47,6 +47,10 @@ class TwitchChannel
                 $this->isMod($user, $tags),
                 $user
             );
+
+        if (isset($tags['custom-reward-id']))
+            $this->wsServer->sendEvent('redeem', ['reward' => $tags['custom-reward-id'], 'message' => $message]);
+
         if ($response)
             $this->sendMessage("$response");
     }

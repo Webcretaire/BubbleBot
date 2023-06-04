@@ -25,6 +25,17 @@ conn.onmessage = function (e) {
             greetUsers.value.push({id: currentId, position: randomPosition(), user: d.data.user});
             setTimeout(() => greetUsers.value = greetUsers.value.filter(({id}) => id !== curId), 7000);
         })(currentId);
+    } else if (d.action === 'redeem' && d.data.reward === config.public.COLOR_REWARD_ID) {
+        const color = d.data.message.startsWith('#') ? d.data.message.substr(1) : d.data.message;
+        if (/^[0-9A-F]{6}$/i.test(color)) {
+            fetch(`${config.public.MEROSS_BASE_URL}/set_devices_color`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({devices: ['Lampe de salon', 'Chevet salon'], color: color})
+            });
+        } else {
+            console.error(`Incorrect hex value redeemed : ${color}`);
+        }
     }
 };
 conn.onopen    = (e: Event) => conn.send(JSON.stringify({action: 'auth', key: route.query.key}));

@@ -14,7 +14,9 @@ export default defineNuxtConfig({
     runtimeConfig: {
         public: {
             BUBBLEBOT_API_PATH: process.env.BUBBLEBOT_API_PATH,
-            WEBSOCKET_BASE_URL: process.env.WEBSOCKET_BASE_URL
+            WEBSOCKET_BASE_URL: process.env.WEBSOCKET_BASE_URL,
+            COLOR_REWARD_ID: process.env.COLOR_REWARD_ID,
+            MEROSS_BASE_URL: process.env.MEROSS_BASE_URL
         }
     },
     ssr: false
